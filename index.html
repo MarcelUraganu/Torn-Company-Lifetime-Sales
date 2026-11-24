@@ -236,7 +236,7 @@ a.go { font-weight: 500; white-space: nowrap; }
           <dl class="found" id="aFound"></dl>
           <details id="aStockDetails" hidden>
             <summary>Stock items</summary>
-            <div class="tablewrap"><table><thead><tr><th>Item</th><th>In stock</th><th>On order</th><th>Cost each</th><th>Value</th><th>Sold amount</th><th>Sold worth</th></tr></thead><tbody id="aStockRows"></tbody></table></div>
+            <div class="tablewrap"><table><thead><tr><th>Item</th><th>In stock</th><th>On order</th><th>Cost each</th><th>Value</th></tr></thead><tbody id="aStockRows"></tbody></table></div>
           </details>
           <label class="check" id="aOnOrderWrap" hidden><input type="checkbox" id="aOnOrder"> Count stock still on order</label>
         </section>
@@ -286,10 +286,6 @@ a.go { font-weight: 500; white-space: nowrap; }
           <div class="line"><span>− Vault</span><span id="rVault"></span></div>
           <div class="line total"><span>= 5% of lifetime sales</span><span id="rCut"></span></div>
           <div class="line total"><span>÷ 5% = lifetime sales</span><span id="rLife"></span></div>
-        </div>
-        <div class="compare" id="soldBox" hidden>
-          <div class="line"><span>Torn's "sold worth" for all items</span><span id="rSoldWorth" style="font-family:var(--font-num)"></span></div>
-          <p class="hint">Torn doesn't say what period this covers. If it's close to the lifetime sales above, it's the same number.</p>
         </div>
       </section>
     </aside>
@@ -579,7 +575,7 @@ a.go { font-weight: 500; white-space: nowrap; }
       var body = $("aStockRows"); body.textContent = "";
       (apiStock || []).forEach(function (it) {
         var tr = document.createElement("tr");
-        [it.name, fmtPlain(it.in_stock || 0), fmtPlain(it.on_order || 0), fmt(it.cost || 0), fmt((it.in_stock || 0) * (it.cost || 0)), fmtPlain(it.sold_amount || 0), fmt(it.sold_worth || 0)].forEach(function (v) {
+        [it.name, fmtPlain(it.in_stock || 0), fmtPlain(it.on_order || 0), fmt(it.cost || 0), fmt((it.in_stock || 0) * (it.cost || 0))].forEach(function (v) {
           var td = document.createElement("td"); td.textContent = v; tr.appendChild(td);
         });
         body.appendChild(tr);
@@ -644,7 +640,7 @@ a.go { font-weight: 500; white-space: nowrap; }
     if (!i) {
       big.textContent = activeTab === "api" ? "Load your company first" : "Select a company"; big.className = "big empty";
       ids.forEach(function (id) { $(id).textContent = "–"; });
-      $("calcWarn").hidden = true; $("soldBox").hidden = true;
+      $("calcWarn").hidden = true;
       return;
     }
     var r = compute(i);
@@ -670,9 +666,6 @@ a.go { font-weight: 500; white-space: nowrap; }
     $("calcWarn").hidden = !warns.length;
     $("calcWarn").textContent = warns.join(" ");
 
-    var worth = activeTab === "api" && apiStock ? apiStock.reduce(function (s, it) { return s + (it.sold_worth || 0); }, 0) : 0;
-    $("soldBox").hidden = worth <= 0;
-    $("rSoldWorth").textContent = fmt(worth);
   }
 
   // Re-render on any edit in either panel.
