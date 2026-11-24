@@ -236,13 +236,12 @@ a.go { font-weight: 500; white-space: nowrap; }
           <dl class="found" id="aFound"></dl>
           <details id="aStockDetails" hidden>
             <summary>Stock items</summary>
-            <div class="tablewrap"><table><thead><tr><th>Item</th><th>In stock</th><th>On order</th><th>Cost each</th><th>Value</th></tr></thead><tbody id="aStockRows"></tbody></table></div>
+            <div class="tablewrap"><table><thead><tr><th>Item</th><th>In stock</th><th>Cost each</th><th>Value</th></tr></thead><tbody id="aStockRows"></tbody></table></div>
           </details>
-          <label class="check" id="aOnOrderWrap" hidden><input type="checkbox" id="aOnOrder"> Count stock still on order</label>
         </section>
 
         <section class="card" aria-labelledby="ah-need" id="aNeedCard" hidden>
-          <h2 id="ah-need"><span class="step">STEP 3</span>What you need to add</h2>
+          <h2 id="ah-need"><span class="step">STEP 3</span><span id="aNeedTitle">What you need to add</span></h2>
           <div class="fields">
             <label class="f">Sell price <small><a class="go" href="https://www.torn.com/companies.php?step=your&amp;type=1#/option=sell-company" target="_blank" rel="noopener">Open Sell Company in Torn ↗</a> · the full figure</small><input type="text" class="num need" id="aSell" inputmode="numeric"></label>
             <label class="f" id="aStaffWrap" hidden>Staff room
@@ -260,10 +259,7 @@ a.go { font-weight: 500; white-space: nowrap; }
             <label class="f" id="aStockWrap" hidden>Total stock value <small><a class="go" href="https://www.torn.com/companies.php?step=your&amp;type=1#/option=stock" target="_blank" rel="noopener">Open Stock in Torn ↗</a> · in stock × cost each</small><input type="text" class="num need" id="aStock" inputmode="numeric" placeholder="0"></label>
           </div>
           <p class="hint" id="aVaultNote" hidden></p>
-          <div class="compare" id="aValueBox" hidden>
-            <div>Torn also reports a company <strong>value</strong> of <span id="aValue" style="font-family:var(--font-num)"></span>. Torn doesn't document what this is. If it matches the sell price in game, it can be used directly.</div>
-            <div class="row"><button type="button" class="ghost" id="aUseValue">Use this as the sell price</button></div>
-          </div>
+          <p class="status ok" id="aValueNote" hidden></p>
         </section>
 
       </div>
@@ -511,8 +507,8 @@ a.go { font-weight: 500; white-space: nowrap; }
   function levelOf(list, name) { return name ? list.indexOf(String(name).trim().toLowerCase()) : -1; }
   function apiStockValue() {
     if (!apiStock) return 0;
-    var onOrder = $("aOnOrder").checked;
-    return apiStock.reduce(function (s, it) { return s + ((it.in_stock || 0) + (onOrder ? (it.on_order || 0) : 0)) * (it.cost || 0); }, 0);
+    // Only stock in hand counts. Checked against a director's daily logs: stock on order is not part of the sell price.
+    return apiStock.reduce(function (s, it) { return s + (it.in_stock || 0) * (it.cost || 0); }, 0);
   }
   function setStatus(kind, text) { var s = $("aStatus"); s.className = "status " + kind; s.textContent = text; }
 
@@ -570,27 +566,30 @@ a.go { font-weight: 500; white-space: nowrap; }
       addFound("Warehouse", api.storageLevel >= 0 ? $("aStorage").options[api.storageLevel].textContent : "Not available", api.storageLevel >= 0);
       addFound("Vault", api.vault !== null ? fmt(api.vault) : "Not available", api.vault !== null);
       addFound("Stock", apiStock ? fmt(apiStockValue()) : "Not available", !!apiStock);
+      addFound("Sell price", api.value !== null ? fmt(api.value) : "Not available", api.value !== null);
 
       // Stock table
       var body = $("aStockRows"); body.textContent = "";
       (apiStock || []).forEach(function (it) {
         var tr = document.createElement("tr");
-        [it.name, fmtPlain(it.in_stock || 0), fmtPlain(it.on_order || 0), fmt(it.cost || 0), fmt((it.in_stock || 0) * (it.cost || 0))].forEach(function (v) {
+        [it.name, fmtPlain(it.in_stock || 0), fmt(it.cost || 0), fmt((it.in_stock || 0) * (it.cost || 0))].forEach(function (v) {
           var td = document.createElement("td"); td.textContent = v; tr.appendChild(td);
         });
         body.appendChild(tr);
       });
       $("aStockDetails").hidden = !(apiStock && apiStock.length);
-      $("aOnOrderWrap").hidden = !(apiStock && apiStock.some(function (it) { return it.on_order > 0; }));
 
       // What you need to add
       $("aStaffWrap").hidden = api.staffLevel >= 0;
       $("aStorageWrap").hidden = api.storageLevel >= 0;
       $("aVaultWrap").hidden = api.vault !== null;
       $("aStockWrap").hidden = !!apiStock;
-      $("aSell").value = "";
-      if (api.value !== null) { $("aValue").textContent = fmt(api.value); $("aValueBox").hidden = false; } else $("aValueBox").hidden = true;
-      $("aVaultNote").hidden = api.vault === null;
+      var needSell = api.value === null;
+      $("aSell").value = needSell ? "" : fmtPlain(api.value);
+      $("aSell").classList.toggle("need", needSell);
+      $("aValueNote").hidden = needSell;
+      if (!needSell) $("aValueNote").textContent = "The sell price came from Torn. It's the same figure Sell Company shows in game, so you only need to change it if the game shows something different.";
+      $("aVaultNote").hidden = !(api.vault !== null && needSell);
       if (api.vault !== null) $("aVaultNote").textContent = "The vault (" + fmt(api.vault) + ") came from Torn and is taken off automatically, so enter the sell price exactly as the game shows it.";
 
       $("aFoundCard").hidden = false;
@@ -601,9 +600,11 @@ a.go { font-weight: 500; white-space: nowrap; }
       if (api.storageLevel < 0) missing.push("warehouse");
       if (api.vault === null) missing.push("vault");
       if (!apiStock) missing.push("stock");
-      setStatus(missing.length ? "warn" : "ok",
-        "Loaded " + (api.name ? "\"" + api.name + "\"" : "your company") + ". " +
-        (missing.length ? "This key can't see the " + missing.join(", ") + (stockErr ? " (" + stockErr + ")" : "") + ", so add " + (missing.length === 1 ? "it" : "them") + " below with the sell price." : "Now add the sell price below."));
+      $("aNeedTitle").textContent = missing.length || needSell ? "What you need to add" : "Check the sell price";
+      var loaded = "Loaded " + (api.name ? "\"" + api.name + "\"" : "your company") + ". ";
+      if (!missing.length && !needSell) setStatus("ok", loaded + "Everything came from Torn, so your lifetime sales are ready.");
+      else if (!missing.length) setStatus("warn", loaded + "Now add the sell price below.");
+      else setStatus("warn", loaded + "This key can't see the " + missing.join(", ") + (stockErr ? " (" + stockErr + ")" : "") + ", so add " + (missing.length === 1 ? "it" : "them") + " below" + (needSell ? " with the sell price." : "."));
     } catch (e) {
       setStatus("bad", "Couldn't load your company: " + e.message);
     } finally {
@@ -628,8 +629,6 @@ a.go { font-weight: 500; white-space: nowrap; }
 
   $("loadBtn").addEventListener("click", load);
   $("apiKey").addEventListener("keydown", function (e) { if (e.key === "Enter") load(); });
-  $("aUseValue").addEventListener("click", function () { $("aSell").value = fmtPlain(api.value); render(); });
-  $("aOnOrder").addEventListener("change", render);
   $("rememberKey").addEventListener("change", function () { try { if (!this.checked) localStorage.removeItem(STORE_KEY); } catch (e) {} });
 
   // ---------- result ----------
