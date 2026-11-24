@@ -133,8 +133,8 @@ a.go { font-weight: 500; white-space: nowrap; }
   </header>
 
   <div class="tabs" role="tablist" aria-label="How to fill in the numbers">
-    <button type="button" class="tab" role="tab" id="tab-manual" aria-controls="panel-manual" aria-selected="true">Without a key<small>Pick your company and type the numbers</small></button>
-    <button type="button" class="tab" role="tab" id="tab-api" aria-controls="panel-api" aria-selected="false">With an API key<small>A Limited key is enough</small></button>
+    <button type="button" class="tab" role="tab" id="tab-api" aria-controls="panel-api" aria-selected="true">With an API key<small>A Limited key is enough</small></button>
+    <button type="button" class="tab" role="tab" id="tab-manual" aria-controls="panel-manual" aria-selected="false">Without a key<small>Pick your company and type the numbers</small></button>
   </div>
 
   <div class="grid">
@@ -392,11 +392,16 @@ a.go { font-weight: 500; white-space: nowrap; }
   // ---------- manual mode ----------
   function fillTypeSelect() {
     var sel = $("mType");
+    var ph = document.createElement("option"); ph.value = ""; ph.textContent = "Select a company"; ph.disabled = true; sel.appendChild(ph);
     TYPES.forEach(function (t) { var o = document.createElement("option"); o.value = t[0]; o.textContent = t[0]; sel.appendChild(o); });
   }
   function fillSizeSelect(def, keepStep) {
     var sel = $("mSize");
     sel.textContent = "";
+    if (!def) {
+      var ph = document.createElement("option"); ph.value = "0"; ph.textContent = "Select a company first"; sel.appendChild(ph);
+      return;
+    }
     for (var k = 0; k <= 6; k++) {
       var o = document.createElement("option");
       o.value = String(k);
@@ -406,9 +411,14 @@ a.go { font-weight: 500; white-space: nowrap; }
     sel.value = String(Math.min(6, Math.max(0, keepStep || 0)));
   }
   function buildStockRows(name) {
-    var list = stockList(name);
     var body = $("mStockRows");
     body.textContent = "";
+    if (!name) {
+      $("mStockTableWrap").hidden = true; $("mStockManualWrap").hidden = true; $("mStockLink").hidden = true;
+      $("mStockHint").textContent = "Select a company in Step 1 to see its stock items.";
+      return;
+    }
+    var list = stockList(name);
     $("mStockTableWrap").hidden = !(list && list.length);
     $("mStockManualWrap").hidden = list !== null;
     $("mStockLink").hidden = !!list && list.length === 0;
@@ -447,12 +457,13 @@ a.go { font-weight: 500; white-space: nowrap; }
   function onTypeChange(keepStep) {
     var t = typeInfo($("mType").value);
     $("mStartup").value = t ? fmtPlain(t[1]) : "";
-    fillSizeSelect(t ? t[2] : 4, keepStep);
+    fillSizeSelect(t ? t[2] : 0, keepStep);
     buildStockRows($("mType").value);
     render();
   }
   function manualInputs() {
     var t = typeInfo($("mType").value);
+    if (!t) return null;
     return {
       startup: t ? t[1] : 0,
       sizeSteps: Number($("mSize").value),
@@ -467,6 +478,7 @@ a.go { font-weight: 500; white-space: nowrap; }
   }
   $("mType").addEventListener("change", function () { onTypeChange(Number($("mSize").value)); hideExample(); });
   $("mFull").addEventListener("click", function () {
+    if (!typeInfo($("mType").value)) { $("mType").focus(); return; }
     $("mSize").value = "6"; $("mStaff").value = "6"; $("mStorage").value = $("mHasWh").checked ? "6" : "0";
     hideExample(); render();
   });
@@ -636,7 +648,7 @@ a.go { font-weight: 500; white-space: nowrap; }
     var ids = ["rSell", "rCost", "rStartup", "rSize", "rStaff", "rStorage", "rCostTotal", "rStock", "rVault", "rCut", "rLife"];
     var big = $("lifetime");
     if (!i) {
-      big.textContent = "Load your company first"; big.className = "big empty";
+      big.textContent = activeTab === "api" ? "Load your company first" : "Select a company"; big.className = "big empty";
       ids.forEach(function (id) { $(id).textContent = "–"; });
       $("calcWarn").hidden = true; $("soldBox").hidden = true;
       return;
@@ -673,17 +685,17 @@ a.go { font-weight: 500; white-space: nowrap; }
   document.addEventListener("input", function (e) { if (e.target.id !== "apiKey" && e.target.id !== "mType") { if (e.target.closest("#panel-manual")) hideExample(); render(); } });
   document.addEventListener("change", function (e) { if (e.target.id !== "rememberKey" && e.target.id !== "mType") { if (e.target.closest("#panel-manual")) hideExample(); render(); } });
 
-  // ---------- start: Adult Novelties, nothing filled in ----------
+  // ---------- start: no company picked, nothing filled in ----------
   fillTypeSelect();
-  $("mType").value = "Adult Novelties";
+  $("mType").value = "";
   onTypeChange(0);
   $("mStaff").value = "0";
   $("mStorage").value = "0";
   $("mSell").value = "";
   $("mVault").value = "";
   try { var saved = localStorage.getItem(STORE_KEY); if (saved) { $("apiKey").value = saved; $("rememberKey").checked = true; } } catch (e) {}
-  var startTab = "manual";
-  try { startTab = localStorage.getItem(TAB_KEY) === "api" ? "api" : "manual"; } catch (e) {}
+  var startTab = "api";
+  try { startTab = localStorage.getItem(TAB_KEY) === "manual" ? "manual" : "api"; } catch (e) {}
   showTab(startTab);
 })();
 </script>
