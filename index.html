@@ -134,7 +134,7 @@ a.go { font-weight: 500; white-space: nowrap; }
 
   <div class="tabs" role="tablist" aria-label="How to fill in the numbers">
     <button type="button" class="tab" role="tab" id="tab-manual" aria-controls="panel-manual" aria-selected="true">Without a key<small>Pick your company and type the numbers</small></button>
-    <button type="button" class="tab" role="tab" id="tab-api" aria-controls="panel-api" aria-selected="false">With an API key<small>Fills in what it can from Torn</small></button>
+    <button type="button" class="tab" role="tab" id="tab-api" aria-controls="panel-api" aria-selected="false">With an API key<small>A Limited key is enough</small></button>
   </div>
 
   <div class="grid">
@@ -195,8 +195,9 @@ a.go { font-weight: 500; white-space: nowrap; }
       <div class="col" id="panel-api" role="tabpanel" aria-labelledby="tab-api" hidden>
         <section class="card" aria-labelledby="ah-key">
           <h2 id="ah-key"><span class="step">STEP 1</span>Load your company</h2>
-          <p class="hint">Use the <strong>director's</strong> Limited key. Other keys only get the public details, and the rest has to be typed in.
-            <a href="https://www.torn.com/preferences.php#tab=api" target="_blank" rel="noopener">Make a key</a></p>
+          <p class="status ok"><strong>A standard Limited key is all you need.</strong> No Custom or Full Access key is required.
+            <a href="https://www.torn.com/preferences.php#tab=api" target="_blank" rel="noopener">Make a Limited key ↗</a></p>
+          <p class="hint">It has to be the <strong>director's</strong> key. Anyone else's key only gets the public details, and the rest has to be typed in.</p>
           <div class="row">
             <input type="password" id="apiKey" autocomplete="off" spellcheck="false" placeholder="Paste your API key" style="flex:1 1 220px">
             <button type="button" id="loadBtn">Load my company</button>
@@ -212,7 +213,7 @@ a.go { font-weight: 500; white-space: nowrap; }
                   <tr><th>Data sharing</th><td>Nothing is shared. The page has no server of its own.</td></tr>
                   <tr><th>Purpose of use</th><td>Working out your company's lifetime sales.</td></tr>
                   <tr><th>Key storage &amp; sharing</th><td>Sent only to api.torn.com, never anywhere else.</td></tr>
-                  <tr><th>Key access level</th><td>Limited (a Custom key with company profile, company stock and torn companies also works).</td></tr>
+                  <tr><th>Key access level</th><td>Limited. A standard Limited key is enough; Full Access is never needed.</td></tr>
                 </tbody>
               </table>
             </div>
