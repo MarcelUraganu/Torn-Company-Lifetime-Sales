@@ -120,6 +120,7 @@ details summary { cursor: pointer; font-size: 0.88rem; color: var(--accent); fon
 textarea { width: 100%; min-height: 140px; font-family: var(--font-num); font-size: 0.78rem; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 8px; }
 table.tos td, table.tos th { white-space: normal; text-align: left; font-family: var(--font-body); vertical-align: top; }
 a { color: var(--accent); }
+a.go { font-weight: 500; white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 </head>
@@ -169,6 +170,7 @@ a { color: var(--accent); }
         <section class="card" aria-labelledby="mh-stock">
           <h2 id="mh-stock"><span class="step">STEP 2</span>Stock</h2>
           <p class="hint" id="mStockHint"></p>
+          <p class="hint" id="mStockLink"><a class="go" href="https://www.torn.com/companies.php?step=your&amp;type=1#/option=stock" target="_blank" rel="noopener">Open Stock in Torn ↗</a> to see how many of each item you have.</p>
           <div class="tablewrap" id="mStockTableWrap">
             <table>
               <thead><tr><th>Item</th><th>In stock</th><th>Cost each (set by Torn)</th><th>Value</th></tr></thead>
@@ -184,8 +186,8 @@ a { color: var(--accent); }
         <section class="card" aria-labelledby="mh-sell">
           <h2 id="mh-sell"><span class="step">STEP 3</span>Sell price and vault</h2>
           <div class="fields">
-            <label class="f">Sell price <small>from Sell Company in game</small><input type="text" class="num" id="mSell" inputmode="numeric"></label>
-            <label class="f">Vault <small>company funds, or 0 if it's already taken off the sell price</small><input type="text" class="num" id="mVault" inputmode="numeric"></label>
+            <label class="f">Sell price <small><a class="go" href="https://www.torn.com/companies.php?step=your&amp;type=1#/option=sell-company" target="_blank" rel="noopener">Open Sell Company in Torn ↗</a></small><input type="text" class="num" id="mSell" inputmode="numeric"></label>
+            <label class="f">Vault <small><a class="go" href="https://www.torn.com/companies.php?step=your&amp;type=1#/option=funds" target="_blank" rel="noopener">Open Funds in Torn ↗</a> · or 0 if it's already taken off the sell price</small><input type="text" class="num" id="mVault" inputmode="numeric"></label>
           </div>
         </section>
       </div>
@@ -231,7 +233,7 @@ a { color: var(--accent); }
         <section class="card" aria-labelledby="ah-need" id="aNeedCard" hidden>
           <h2 id="ah-need"><span class="step">STEP 3</span>What you need to add</h2>
           <div class="fields">
-            <label class="f">Sell price <small>the full figure from Sell Company in game</small><input type="text" class="num need" id="aSell" inputmode="numeric"></label>
+            <label class="f">Sell price <small><a class="go" href="https://www.torn.com/companies.php?step=your&amp;type=1#/option=sell-company" target="_blank" rel="noopener">Open Sell Company in Torn ↗</a> · the full figure</small><input type="text" class="num need" id="aSell" inputmode="numeric"></label>
             <label class="f" id="aStaffWrap" hidden>Staff room
               <select id="aStaff">
                 <option value="0">No staff room</option><option value="1">Small staff room</option><option value="2">Standard staff room</option>
@@ -243,8 +245,8 @@ a { color: var(--accent); }
                 <option value="0">None / small room</option><option value="1">Standard room</option><option value="2">Large room</option>
                 <option value="3">Huge room</option><option value="4">Warehouse</option><option value="5">Large warehouse</option><option value="6">Huge warehouse</option>
               </select></label>
-            <label class="f" id="aVaultWrap" hidden>Vault <small>company funds, or 0 if it's already taken off the sell price</small><input type="text" class="num need" id="aVault" inputmode="numeric" value="0"></label>
-            <label class="f" id="aStockWrap" hidden>Total stock value <small>in stock × cost each</small><input type="text" class="num need" id="aStock" inputmode="numeric" value="0"></label>
+            <label class="f" id="aVaultWrap" hidden>Vault <small><a class="go" href="https://www.torn.com/companies.php?step=your&amp;type=1#/option=funds" target="_blank" rel="noopener">Open Funds in Torn ↗</a> · or 0 if it's already taken off the sell price</small><input type="text" class="num need" id="aVault" inputmode="numeric" value="0"></label>
+            <label class="f" id="aStockWrap" hidden>Total stock value <small><a class="go" href="https://www.torn.com/companies.php?step=your&amp;type=1#/option=stock" target="_blank" rel="noopener">Open Stock in Torn ↗</a> · in stock × cost each</small><input type="text" class="num need" id="aStock" inputmode="numeric" value="0"></label>
           </div>
           <p class="hint" id="aVaultNote" hidden></p>
           <div class="compare" id="aValueBox" hidden>
@@ -409,6 +411,7 @@ a { color: var(--accent); }
     body.textContent = "";
     $("mStockTableWrap").hidden = !(list && list.length);
     $("mStockManualWrap").hidden = list !== null;
+    $("mStockLink").hidden = !!list && list.length === 0;
     if (list === null) {
       $("mStockHint").textContent = "This company's stock prices aren't in the built-in list yet. Add up in stock × cost each from your Stock page and enter the total.";
     } else if (!list.length) {
