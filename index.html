@@ -1,0 +1,688 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lifetime Sales Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: ledger page. Two tabs (with key / without key) over numbered form sections on the left; result card pinned on the right; one column on phones. */
+:root {
+  --bg: #f3f4f1;
+  --panel: #ffffff;
+  --ink: #1d2320;
+  --muted: #5d6762;
+  --line: #d9ddd8;
+  --accent: #1f6b5c;
+  --accent-soft: #e2efeb;
+  --warn: #9a5b00;
+  --warn-soft: #fbf0dc;
+  --bad: #a23a2e;
+  --bad-soft: #f8e4e1;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-num: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141917; --panel: #1c2320; --ink: #e6ebe8; --muted: #9aa6a0; --line: #2f3834;
+    --accent: #5cc0a7; --accent-soft: #1d3530; --warn: #e5a948; --warn-soft: #3a2e17;
+    --bad: #ee8576; --bad-soft: #3d221e; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141917; --panel: #1c2320; --ink: #e6ebe8; --muted: #9aa6a0; --line: #2f3834;
+  --accent: #5cc0a7; --accent-soft: #1d3530; --warn: #e5a948; --warn-soft: #3a2e17;
+  --bad: #ee8576; --bad-soft: #3d221e; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--ink); font: 15px/1.5 var(--font-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 48px;
+}
+.wrap { max-width: 1120px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; }
+.wrap > * { min-width: 0; }
+header h1 { font-size: 1.75rem; line-height: 1.2; margin: 0 0 6px; text-wrap: balance; letter-spacing: -0.01em; }
+header p { margin: 0; color: var(--muted); max-width: 68ch; }
+.formula {
+  font-family: var(--font-num); font-size: 0.85rem; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 8px; padding: 10px 14px; overflow-x: auto; white-space: nowrap; margin-top: 14px;
+}
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.tab {
+  font: inherit; font-weight: 600; font-size: 0.92rem; padding: 10px 16px; cursor: pointer; background: transparent;
+  color: var(--muted); border: 1px solid transparent; border-bottom: none; border-radius: 8px 8px 0 0; margin-bottom: -1px;
+}
+.tab[aria-selected="true"] { background: var(--panel); color: var(--ink); border-color: var(--line); }
+.tab small { display: block; font-weight: 400; font-size: 0.75rem; color: var(--muted); }
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 24px; align-items: start; }
+@media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.col { display: grid; gap: 18px; min-width: 0; }
+section.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; display: grid; gap: 14px; min-width: 0; }
+.card h2 { font-size: 1rem; margin: 0; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.step { font-family: var(--font-num); font-size: 0.75rem; color: var(--accent); letter-spacing: 0.06em; }
+.hint { color: var(--muted); font-size: 0.85rem; margin: 0; }
+.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px 16px; }
+label.f { display: grid; gap: 4px; font-size: 0.82rem; font-weight: 500; align-content: start; }
+label.f small { color: var(--muted); font-weight: 400; }
+input[type="text"], input[type="password"], select {
+  font: inherit; font-size: 0.95rem; color: var(--ink); background: var(--bg); border: 1px solid var(--line);
+  border-radius: 6px; padding: 8px 10px; width: 100%; min-width: 0;
+}
+input.num { font-family: var(--font-num); text-align: right; font-variant-numeric: tabular-nums; }
+input.need { border-color: var(--warn); }
+input:focus-visible, select:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.check { display: flex; gap: 8px; align-items: center; font-size: 0.88rem; }
+button {
+  font: inherit; font-weight: 600; font-size: 0.9rem; border-radius: 6px; padding: 8px 14px; cursor: pointer;
+  border: 1px solid var(--accent); background: var(--accent); color: var(--panel);
+}
+button.ghost { background: transparent; color: var(--accent); }
+button:disabled { opacity: 0.55; cursor: wait; }
+.status { font-size: 0.86rem; padding: 8px 12px; border-radius: 6px; margin: 0; }
+.status.ok { background: var(--accent-soft); color: var(--accent); }
+.status.warn { background: var(--warn-soft); color: var(--warn); }
+.status.bad { background: var(--bad-soft); color: var(--bad); }
+.pill { display: inline-block; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; background: var(--warn-soft); color: var(--warn); white-space: nowrap; }
+.pill.live { background: var(--accent-soft); color: var(--accent); }
+.radio { display: grid; gap: 6px; font-size: 0.88rem; }
+.compare { font-size: 0.86rem; display: grid; gap: 8px; border-top: 1px dashed var(--line); padding-top: 12px; }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
+th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+th { font-weight: 600; color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
+td { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+td:first-child { font-family: var(--font-body); }
+td input.num { width: 7.5em; padding: 5px 8px; font-size: 0.85rem; }
+tfoot td { font-weight: 600; border-bottom: none; }
+dl.found { display: grid; grid-template-columns: max-content minmax(0, 1fr) max-content; gap: 8px 14px; margin: 0; font-size: 0.88rem; align-items: baseline; }
+dl.found dt { color: var(--muted); }
+dl.found dd { margin: 0; font-family: var(--font-num); font-variant-numeric: tabular-nums; text-align: right; overflow-wrap: anywhere; }
+details summary { cursor: pointer; font-size: 0.88rem; color: var(--accent); font-weight: 500; }
+.result { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); }
+.result .big { font-family: var(--font-num); font-size: 2rem; font-weight: 600; line-height: 1.1; color: var(--accent); word-break: break-all; font-variant-numeric: tabular-nums; }
+.result .big.neg { color: var(--bad); }
+.result .big.empty { font-size: 1.15rem; color: var(--muted); }
+.lines { display: grid; gap: 6px; font-size: 0.86rem; }
+.line { display: flex; justify-content: space-between; gap: 12px; }
+.line span:last-child { font-family: var(--font-num); font-variant-numeric: tabular-nums; text-align: right; }
+.line.total { border-top: 1px solid var(--line); padding-top: 6px; font-weight: 600; }
+.line.sub { color: var(--muted); padding-left: 12px; font-size: 0.82rem; }
+.eyebrow { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
+textarea { width: 100%; min-height: 140px; font-family: var(--font-num); font-size: 0.78rem; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 8px; }
+table.tos td, table.tos th { white-space: normal; text-align: left; font-family: var(--font-body); vertical-align: top; }
+a { color: var(--accent); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Lifetime Sales Calculator</h1>
+    <p>Works out how much a Torn company has sold over its whole life, from what it would pay out if sold back to the system.</p>
+    <div class="formula">Lifetime sales = (Sell price − 75% × Cost&nbsp;+&nbsp;upgrades − 75% × Stock − Vault) ÷ 5%</div>
+  </header>
+
+  <div class="tabs" role="tablist" aria-label="How to fill in the numbers">
+    <button type="button" class="tab" role="tab" id="tab-manual" aria-controls="panel-manual" aria-selected="true">Without a key<small>Pick your company and type the numbers</small></button>
+    <button type="button" class="tab" role="tab" id="tab-api" aria-controls="panel-api" aria-selected="false">With an API key<small>Fills in what it can from Torn</small></button>
+  </div>
+
+  <div class="grid">
+    <div class="col">
+
+      <!-- ===================== MANUAL MODE ===================== -->
+      <div class="col" id="panel-manual" role="tabpanel" aria-labelledby="tab-manual">
+        <p class="status warn" id="mExampleNote">Showing an example: a fully upgraded Fitness Center. Change anything to work out your own company.</p>
+
+        <section class="card" aria-labelledby="mh-company">
+          <h2 id="mh-company"><span class="step">STEP 1</span>Company and upgrades</h2>
+          <div class="fields">
+            <label class="f">Company type<select id="mType"></select></label>
+            <label class="f">Startup cost<input type="text" class="num" id="mStartup" readonly tabindex="-1"></label>
+          </div>
+          <div class="fields">
+            <label class="f">Company size<select id="mSize"></select></label>
+            <label class="f">Staff room
+              <select id="mStaff">
+                <option value="0">No staff room</option><option value="1">Small staff room</option><option value="2">Standard staff room</option>
+                <option value="3">Large staff room</option><option value="4">Very large staff room</option><option value="5">Huge staff room</option>
+                <option value="6">Colossal staff room</option>
+              </select></label>
+            <label class="f">Warehouse
+              <select id="mStorage">
+                <option value="0">None / small room</option><option value="1">Standard room</option><option value="2">Large room</option>
+                <option value="3">Huge room</option><option value="4">Warehouse</option><option value="5">Large warehouse</option><option value="6">Huge warehouse</option>
+              </select></label>
+          </div>
+          <div class="row"><button type="button" class="ghost" id="mFull">Set to fully upgraded</button><label class="check"><input type="checkbox" id="mHasWh"> Company has a warehouse</label></div>
+        </section>
+
+        <section class="card" aria-labelledby="mh-stock">
+          <h2 id="mh-stock"><span class="step">STEP 2</span>Stock</h2>
+          <p class="hint" id="mStockHint"></p>
+          <div class="tablewrap" id="mStockTableWrap">
+            <table>
+              <thead><tr><th>Item</th><th>In stock</th><th>Cost each (set by Torn)</th><th>Value</th></tr></thead>
+              <tbody id="mStockRows"></tbody>
+              <tfoot><tr><td>Total</td><td></td><td></td><td id="mStockTotal">$0</td></tr></tfoot>
+            </table>
+          </div>
+          <div class="fields" id="mStockManualWrap">
+            <label class="f">Total stock value <small>in stock × cost each, for every item</small><input type="text" class="num" id="mStockManual" inputmode="numeric" value="0"></label>
+          </div>
+        </section>
+
+        <section class="card" aria-labelledby="mh-sell">
+          <h2 id="mh-sell"><span class="step">STEP 3</span>Sell price and vault</h2>
+          <div class="fields">
+            <label class="f">Sell price <small>from Sell Company in game</small><input type="text" class="num" id="mSell" inputmode="numeric"></label>
+            <label class="f">Vault <small>company funds, or 0 if it's already taken off the sell price</small><input type="text" class="num" id="mVault" inputmode="numeric"></label>
+          </div>
+        </section>
+      </div>
+
+      <!-- ===================== API MODE ===================== -->
+      <div class="col" id="panel-api" role="tabpanel" aria-labelledby="tab-api" hidden>
+        <section class="card" aria-labelledby="ah-key">
+          <h2 id="ah-key"><span class="step">STEP 1</span>Load your company</h2>
+          <p class="hint">Use the <strong>director's</strong> Limited key. Other keys only get the public details, and the rest has to be typed in.
+            <a href="https://www.torn.com/preferences.php#tab=api" target="_blank" rel="noopener">Make a key</a></p>
+          <div class="row">
+            <input type="password" id="apiKey" autocomplete="off" spellcheck="false" placeholder="Paste your API key" style="flex:1 1 220px">
+            <button type="button" id="loadBtn">Load my company</button>
+          </div>
+          <label class="check"><input type="checkbox" id="rememberKey"> Remember the key on this device</label>
+          <p class="status warn" id="aStatus">Paste a key and press Load my company.</p>
+          <details>
+            <summary>How your key is used</summary>
+            <div class="tablewrap">
+              <table class="tos">
+                <tbody>
+                  <tr><th>Data storage</th><td>Nothing is stored anywhere except your browser. The key is kept on this device only if you tick "Remember the key".</td></tr>
+                  <tr><th>Data sharing</th><td>Nothing is shared. The page has no server of its own.</td></tr>
+                  <tr><th>Purpose of use</th><td>Working out your company's lifetime sales.</td></tr>
+                  <tr><th>Key storage &amp; sharing</th><td>Sent only to api.torn.com, never anywhere else.</td></tr>
+                  <tr><th>Key access level</th><td>Limited (a Custom key with company profile, company stock and torn companies also works).</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </details>
+        </section>
+
+        <section class="card" aria-labelledby="ah-found" id="aFoundCard" hidden>
+          <h2 id="ah-found"><span class="step">STEP 2</span>What Torn sent back</h2>
+          <dl class="found" id="aFound"></dl>
+          <details id="aStockDetails" hidden>
+            <summary>Stock items</summary>
+            <div class="tablewrap"><table><thead><tr><th>Item</th><th>In stock</th><th>On order</th><th>Cost each</th><th>Value</th><th>Sold amount</th><th>Sold worth</th></tr></thead><tbody id="aStockRows"></tbody></table></div>
+          </details>
+          <label class="check" id="aOnOrderWrap" hidden><input type="checkbox" id="aOnOrder"> Count stock still on order</label>
+        </section>
+
+        <section class="card" aria-labelledby="ah-need" id="aNeedCard" hidden>
+          <h2 id="ah-need"><span class="step">STEP 3</span>What you need to add</h2>
+          <div class="fields">
+            <label class="f">Sell price <small>the full figure from Sell Company in game</small><input type="text" class="num need" id="aSell" inputmode="numeric"></label>
+            <label class="f" id="aStaffWrap" hidden>Staff room
+              <select id="aStaff">
+                <option value="0">No staff room</option><option value="1">Small staff room</option><option value="2">Standard staff room</option>
+                <option value="3">Large staff room</option><option value="4">Very large staff room</option><option value="5">Huge staff room</option>
+                <option value="6">Colossal staff room</option>
+              </select></label>
+            <label class="f" id="aStorageWrap" hidden>Warehouse
+              <select id="aStorage">
+                <option value="0">None / small room</option><option value="1">Standard room</option><option value="2">Large room</option>
+                <option value="3">Huge room</option><option value="4">Warehouse</option><option value="5">Large warehouse</option><option value="6">Huge warehouse</option>
+              </select></label>
+            <label class="f" id="aVaultWrap" hidden>Vault <small>company funds, or 0 if it's already taken off the sell price</small><input type="text" class="num need" id="aVault" inputmode="numeric" value="0"></label>
+            <label class="f" id="aStockWrap" hidden>Total stock value <small>in stock × cost each</small><input type="text" class="num need" id="aStock" inputmode="numeric" value="0"></label>
+          </div>
+          <p class="hint" id="aVaultNote" hidden></p>
+          <div class="compare" id="aValueBox" hidden>
+            <div>Torn also reports a company <strong>value</strong> of <span id="aValue" style="font-family:var(--font-num)"></span>. Torn doesn't document what this is. If it matches the sell price in game, it can be used directly.</div>
+            <div class="row"><button type="button" class="ghost" id="aUseValue">Use this as the sell price</button></div>
+          </div>
+        </section>
+
+        <section class="card" aria-labelledby="ah-report" id="aReportCard" hidden>
+          <h2 id="ah-report"><span class="step">TEST</span>Test report</h2>
+          <p class="hint">What the API returned, with your key left out. Paste it into the chat so the calculation can be checked.</p>
+          <div class="row"><button type="button" class="ghost" id="aCopy">Copy test report</button><span class="hint" id="aCopyMsg"></span></div>
+          <textarea id="aReport" readonly aria-label="Test report"></textarea>
+        </section>
+      </div>
+    </div>
+
+    <aside class="result">
+      <section class="card" aria-labelledby="h-result" aria-live="polite">
+        <div class="eyebrow" id="h-result">Lifetime sales</div>
+        <div class="big" id="lifetime">–</div>
+        <p class="status bad" id="calcWarn" hidden></p>
+        <div class="lines">
+          <div class="line"><span>Sell price</span><span id="rSell"></span></div>
+          <div class="line"><span>− 75% of cost + upgrades</span><span id="rCost"></span></div>
+          <div class="line sub"><span>Startup</span><span id="rStartup"></span></div>
+          <div class="line sub"><span id="rSizeLabel">Size upgrades</span><span id="rSize"></span></div>
+          <div class="line sub"><span>Staff room</span><span id="rStaff"></span></div>
+          <div class="line sub"><span>Warehouse</span><span id="rStorage"></span></div>
+          <div class="line sub"><span>Cost + upgrades total</span><span id="rCostTotal"></span></div>
+          <div class="line"><span>− 75% of stock</span><span id="rStock"></span></div>
+          <div class="line"><span>− Vault</span><span id="rVault"></span></div>
+          <div class="line total"><span>= 5% of lifetime sales</span><span id="rCut"></span></div>
+          <div class="line total"><span>÷ 5% = lifetime sales</span><span id="rLife"></span></div>
+        </div>
+        <div class="compare" id="soldBox" hidden>
+          <div class="line"><span>Torn's "sold worth" for all items</span><span id="rSoldWorth" style="font-family:var(--font-num)"></span></div>
+          <p class="hint">Torn doesn't say what period this covers. If it's close to the lifetime sales above, it's the same number.</p>
+        </div>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var API = "https://api.torn.com/v2";
+  var STORE_KEY = "lsc.apiKey";
+  var TAB_KEY = "lsc.tab";
+  var STAFF = ["no staff room", "small staff room", "standard staff room", "large staff room", "very large staff room", "huge staff room", "colossal staff room"];
+  var STORAGE = ["small room", "standard room", "large room", "huge room", "warehouse", "large warehouse", "huge warehouse"];
+  var $ = function (id) { return document.getElementById(id); };
+
+  // Startup cost and starting size, from wiki.torn.com/wiki/Company (Nov 2026).
+  var TYPES = [
+    ["Adult Novelties", 1750000, 4], ["Amusement Park", 100000000, 8], ["Candle Shop", 500000, 4], ["Car Dealership", 6000000, 4],
+    ["Clothing Store", 1000000, 5], ["Cruise Line", 300000000, 6], ["Cyber Cafe", 3000000, 4], ["Detective Agency", 12000000, 4],
+    ["Farm", 5250000, 5], ["Firework Stand", 500000, 4], ["Fitness Center", 17000000, 8], ["Flower Shop", 500000, 4],
+    ["Furniture Store", 2500000, 4], ["Game Shop", 1250000, 4], ["Gas Station", 25000000, 4], ["Gents Strip Club", 5000000, 4],
+    ["Grocery Store", 2000000, 5], ["Gun Shop", 2500000, 4], ["Hair Salon", 750000, 4], ["Ladies Strip Club", 5000000, 4],
+    ["Law Firm", 4000000, 4], ["Lingerie Store", 1750000, 4], ["Logistics Management", 1800000000, 6], ["Meat Warehouse", 4000000, 5],
+    ["Mechanic Shop", 3000000, 4], ["Mining Corporation", 4500000000, 8], ["Music Store", 1500000, 4], ["Nightclub", 7500000, 5],
+    ["Oil Rig", 10500000000, 12], ["Private Security Firm", 950000000, 6], ["Property Broker", 750000, 4], ["Pub", 1250000, 4],
+    ["Restaurant", 1000000, 4], ["Software Corporation", 6000000, 5], ["Sweet Shop", 1000000, 4], ["Television Network", 8000000000, 8],
+    ["Theater", 50000000, 6], ["Toy Shop", 2000000, 5], ["Zoo", 300000000, 6]
+  ];
+  // Cost each for every item a company can order, from each company's page on wiki.torn.com (Nov 2026).
+  // [] = nothing can be ordered (services and producers), null = not in the built-in list yet.
+  var STOCK = {
+    "Adult Novelties": [["Blow Up Doll", 4], ["Magazine", 4], ["Lubricant", 6], ["Condoms", 6], ["Whip", 7], ["Handcuffs", 10], ["Kama Sutra Book", 12], ["Vibrator", 19]],
+    "Candle Shop": [["Tealight", 2], ["Dinner Candle", 4], ["Holder", 10], ["Pillar Candle", 12], ["Scented Candle", 19]],
+    "Car Dealership": [["Compact", 5000], ["Hatchback", 6500], ["Sedan", 9750], ["Coupe", 10500], ["SUV", 12500], ["Sports Car", 29000], ["Luxury Car", 82500]],
+    "Clothing Store": [["Sandals", 15], ["Sweat Pants", 15], ["Underwear", 15], ["T-Shirt", 20], ["Shorts", 25], ["Body Warmer", 33], ["Jeans", 46], ["Boots", 72], ["Polo Shirt", 86], ["Chinos", 99], ["Jacket", 140], ["Leather Shoes", 200], ["Tuxedo", 697]],
+    "Furniture Store": [["Dining Chair", 50], ["Bedside Table", 100], ["Coffee Table", 200], ["Entertainment Unit", 250], ["Dining Table", 400], ["Display Cabinet", 450], ["Bed", 450], ["Sofa", 600]],
+    "Game Shop": [["Handheld Game", 28], ["PC Game", 46], ["Controller", 55], ["Console Game", 58], ["Handheld", 350], ["Console", 545]],
+    "Gas Station": [["Gasoline (Gallon)", 2], ["Diesel (Gallon)", 3]],
+    "Grocery Store": [["Fruit", 1], ["Bread", 1], ["Dairy", 1], ["Vegetables", 2], ["Fish", 3], ["Meat", 4]],
+    "Gun Shop": [["Pistol", 250], ["Hunting Rifle", 330], ["Shotgun", 375], ["Submachine Gun", 510], ["Assault Rifle", 745]],
+    "Lingerie Store": [["Knickers", 4], ["Stockings", 8], ["Thong", 10], ["Bra", 21], ["Suspenders", 30], ["Corset", 40]],
+    "Mechanic Shop": [["Tyre", 30]],
+    "Music Store": [["Ukulele", 121], ["Synthesizer", 280], ["Violin", 389], ["Flute", 499], ["Guitar", 691], ["Drum Kit", 923], ["Saxophone", 1000], ["Trumpet", 1311], ["Clarinet", 1692], ["Piano", 5400]],
+    "Restaurant": [["Beverage", 1], ["Bottle of Wine", 40]],
+    "Sweet Shop": [["Marshmallow Selection", 3], ["Boiled Sweet Selection", 4], ["Jelly Selection", 5], ["Caramel Selection", 5], ["Chocolate Selection", 8], ["Liquorice Selection", 11], ["Fudge Selection", 14]],
+    "Toy Shop": [["Jigsaw", 6], ["Plushie Toy", 12], ["Craft Set", 16], ["Action Figure", 17], ["Board Game", 18], ["Water Pistol", 22], ["Model Kit", 23], ["Doll", 31], ["RC Car", 40], ["RC Helicopter", 50], ["Scooter", 90], ["Bicycle", 112], ["Trampoline", 462], ["Game Console", 545], ["Playhouse", 625]],
+    "Zoo": [["Animal Feed", 1], ["Souvenir", 2]],
+    "Flower Shop": null, "Pub": null
+  };
+
+  // ---------- helpers ----------
+  function parseMoney(str) {
+    var neg = /^\s*-/.test(String(str));
+    var digits = String(str).replace(/[^0-9]/g, "");
+    if (!digits) return 0;
+    var n = Number(digits);
+    return neg ? -n : n;
+  }
+  function fmt(n) {
+    if (!isFinite(n)) return "–";
+    var r = Math.round(n);
+    return (r < 0 ? "−$" : "$") + Math.abs(r).toLocaleString("en-US");
+  }
+  function fmtPlain(n) { return Math.round(n).toLocaleString("en-US"); }
+  function triangle(k) { return k * (k + 1) / 2; }
+  function typeInfo(name) { for (var i = 0; i < TYPES.length; i++) if (TYPES[i][0] === name) return TYPES[i]; return null; }
+  function stockList(name) { return Object.prototype.hasOwnProperty.call(STOCK, name) ? STOCK[name] : []; }
+
+  // Size upgrade k gives 100% + 25%·k of the starting size, rounded down (k = 0..6). Checked against Torn Stats.
+  function sizeAt(def, k) { return Math.floor(def * (1 + 0.25 * k)); }
+  function sizeStepsFor(def, cur) {
+    if (!(def > 0) || !(cur > 0)) return { steps: 0, exact: true };
+    for (var k = 0; k <= 6; k++) if (cur === sizeAt(def, k)) return { steps: k, exact: true };
+    var g = Math.round((cur / def - 1) / 0.25);
+    return { steps: Math.min(6, Math.max(0, g)), exact: false };
+  }
+
+  // Pure calculation. input: startup, sizeSteps, staffLevel, storageLevel, stock, sell, vault, sellIncludesVault
+  function compute(i) {
+    var sizeCost = i.startup * 0.10 * triangle(i.sizeSteps);
+    var staffCost = i.startup * 0.025 * triangle(i.staffLevel);
+    var storageCost = i.startup * 0.05 * triangle(i.storageLevel);
+    var costTotal = i.startup + sizeCost + staffCost + storageCost;
+    var vaultDeduct = i.sellIncludesVault ? i.vault : 0;
+    var cut = i.sell - 0.75 * costTotal - 0.75 * i.stock - vaultDeduct;
+    return { sizeCost: sizeCost, staffCost: staffCost, storageCost: storageCost, costTotal: costTotal, vaultDeduct: vaultDeduct, cut: cut, lifetime: cut / 0.05 };
+  }
+  window.LSC = { compute: compute, parseMoney: parseMoney, sizeStepsFor: sizeStepsFor, sizeAt: sizeAt };
+
+  // ---------- tabs ----------
+  var activeTab = "manual";
+  function showTab(name) {
+    activeTab = name;
+    ["manual", "api"].forEach(function (t) {
+      $("tab-" + t).setAttribute("aria-selected", String(t === name));
+      $("panel-" + t).hidden = t !== name;
+    });
+    try { localStorage.setItem(TAB_KEY, name); } catch (e) {}
+    render();
+  }
+  $("tab-manual").addEventListener("click", function () { showTab("manual"); });
+  $("tab-api").addEventListener("click", function () { showTab("api"); });
+
+  // ---------- manual mode ----------
+  function fillTypeSelect() {
+    var sel = $("mType");
+    TYPES.forEach(function (t) { var o = document.createElement("option"); o.value = t[0]; o.textContent = t[0]; sel.appendChild(o); });
+  }
+  function fillSizeSelect(def, keepStep) {
+    var sel = $("mSize");
+    sel.textContent = "";
+    for (var k = 0; k <= 6; k++) {
+      var o = document.createElement("option");
+      o.value = String(k);
+      o.textContent = sizeAt(def, k) + " employees" + (k === 0 ? " (startup)" : k === 6 ? " (max)" : "");
+      sel.appendChild(o);
+    }
+    sel.value = String(Math.min(6, Math.max(0, keepStep || 0)));
+  }
+  function buildStockRows(name) {
+    var list = stockList(name);
+    var body = $("mStockRows");
+    body.textContent = "";
+    $("mStockTableWrap").hidden = !(list && list.length);
+    $("mStockManualWrap").hidden = list !== null;
+    if (list === null) {
+      $("mStockHint").textContent = "This company's stock prices aren't in the built-in list yet. Add up in stock × cost each from your Stock page and enter the total.";
+    } else if (!list.length) {
+      $("mStockHint").textContent = "This company's products can't be ordered, so its stock counts as $0.";
+    } else {
+      $("mStockHint").textContent = "Enter how many of each item you have in stock. Cost each is set by Torn. The price you charge customers doesn't affect the sellback, so it isn't needed.";
+      list.forEach(function (it, idx) {
+        var tr = document.createElement("tr");
+        var tdName = document.createElement("td"); tdName.textContent = it[0]; tr.appendChild(tdName);
+        var tdQty = document.createElement("td"); var q = document.createElement("input");
+        q.type = "text"; q.className = "num"; q.inputMode = "numeric"; q.id = "mQty" + idx; q.value = "0"; q.setAttribute("aria-label", it[0] + " in stock");
+        tdQty.appendChild(q); tr.appendChild(tdQty);
+        var tdCost = document.createElement("td"); tdCost.id = "mCost" + idx; tdCost.textContent = fmt(it[1]); tr.appendChild(tdCost);
+        var tdVal = document.createElement("td"); tdVal.id = "mVal" + idx; tdVal.textContent = "$0"; tr.appendChild(tdVal);
+        body.appendChild(tr);
+        q.addEventListener("input", render);
+      });
+    }
+  }
+  function manualStock() {
+    var list = stockList($("mType").value);
+    if (list === null) return parseMoney($("mStockManual").value);
+    var total = 0;
+    for (var i = 0; i < list.length; i++) {
+      if (!$("mQty" + i)) continue; // rows not built yet for a just-picked company
+      var v = parseMoney($("mQty" + i).value) * list[i][1];
+      $("mVal" + i).textContent = fmt(v);
+      total += v;
+    }
+    $("mStockTotal").textContent = fmt(total);
+    return total;
+  }
+  function onTypeChange(keepStep) {
+    var t = typeInfo($("mType").value);
+    $("mStartup").value = t ? fmtPlain(t[1]) : "";
+    fillSizeSelect(t ? t[2] : 4, keepStep);
+    buildStockRows($("mType").value);
+    render();
+  }
+  function manualInputs() {
+    var t = typeInfo($("mType").value);
+    return {
+      startup: t ? t[1] : 0,
+      sizeSteps: Number($("mSize").value),
+      staffLevel: Number($("mStaff").value),
+      storageLevel: Number($("mStorage").value),
+      stock: manualStock(),
+      sell: parseMoney($("mSell").value),
+      vault: parseMoney($("mVault").value),
+      sellIncludesVault: true,
+      sizeExact: true
+    };
+  }
+  $("mType").addEventListener("change", function () { onTypeChange(Number($("mSize").value)); hideExample(); });
+  $("mFull").addEventListener("click", function () {
+    $("mSize").value = "6"; $("mStaff").value = "6"; $("mStorage").value = $("mHasWh").checked ? "6" : "0";
+    hideExample(); render();
+  });
+  function hideExample() { $("mExampleNote").hidden = true; }
+
+  // ---------- API mode ----------
+  var api = null;      // what the API returned, normalised
+  var apiStock = null; // stock items from the API
+
+  async function call(path, key) {
+    var url = API + path + (path.indexOf("?") >= 0 ? "&" : "?") + "key=" + encodeURIComponent(key) + "&comment=LifetimeSalesCalc";
+    var res;
+    try { res = await fetch(url, { method: "GET", cache: "no-store" }); }
+    catch (e) { throw new Error("Couldn't reach api.torn.com (" + e.message + "). Check your connection."); }
+    var data;
+    try { data = await res.json(); } catch (e) { throw new Error("api.torn.com sent back something that isn't JSON (HTTP " + res.status + ")."); }
+    if (data && data.error) {
+      var msg = typeof data.error === "object" ? (data.error.error || JSON.stringify(data.error)) : String(data.error);
+      var code = typeof data.error === "object" ? data.error.code : undefined;
+      if (code === 7) msg = "only the company's director can read this";
+      else if (code === 16) msg = "this key's access level is too low (use a Limited key)";
+      var err = new Error(msg + (code !== undefined ? " (code " + code + ")" : ""));
+      err.tornCode = code;
+      throw err;
+    }
+    return data;
+  }
+  function levelOf(list, name) { return name ? list.indexOf(String(name).trim().toLowerCase()) : -1; }
+  function apiStockValue() {
+    if (!apiStock) return 0;
+    var onOrder = $("aOnOrder").checked;
+    return apiStock.reduce(function (s, it) { return s + ((it.in_stock || 0) + (onOrder ? (it.on_order || 0) : 0)) * (it.cost || 0); }, 0);
+  }
+  function setStatus(kind, text) { var s = $("aStatus"); s.className = "status " + kind; s.textContent = text; }
+
+  function addFound(label, value, live) {
+    var dt = document.createElement("dt"); dt.textContent = label;
+    var dd = document.createElement("dd"); dd.textContent = value;
+    var pill = document.createElement("span"); pill.className = "pill" + (live ? " live" : ""); pill.textContent = live ? "From API" : "Add below";
+    var wrap = document.createElement("dd"); wrap.style.textAlign = "left"; wrap.appendChild(pill);
+    $("aFound").appendChild(dt); $("aFound").appendChild(dd); $("aFound").appendChild(wrap);
+  }
+
+  async function load() {
+    var key = $("apiKey").value.trim();
+    if (!key) { setStatus("bad", "Paste an API key first."); return; }
+    try { if ($("rememberKey").checked) localStorage.setItem(STORE_KEY, key); else localStorage.removeItem(STORE_KEY); } catch (e) {}
+    $("loadBtn").disabled = true;
+    setStatus("warn", "Loading from api.torn.com…");
+    var report = { generated: new Date().toISOString() };
+    try {
+      var prof = await call("/company/profile", key);
+      var p = prof.profile || prof.company || prof;
+      report.profile = { type: p.type, rating: p.rating, days_old: p.days_old, employees: p.employees, upgrades: p.upgrades, funds: p.funds, value: p.value, income: p.income };
+
+      var types = await call("/torn/companies", key);
+      var list = types.companies || [];
+      var t = null;
+      for (var k = 0; k < list.length; k++) if (p.type && list[k].id === p.type.id) { t = list[k]; break; }
+      report.companyType = t ? { id: t.id, name: t.name, cost: t.cost, employees: t.employees } : null;
+      var wiki = p.type ? typeInfo(p.type.name) : null;
+
+      api = {
+        name: p.name || "", typeName: p.type ? p.type.name : "",
+        startup: t ? t.cost : (wiki ? wiki[1] : 0),
+        defaultSize: t ? t.employees : (wiki ? wiki[2] : 0),
+        capacity: p.employees && typeof p.employees.capacity === "number" ? p.employees.capacity : null,
+        staffLevel: p.upgrades ? levelOf(STAFF, p.upgrades.staff_room) : -1,
+        storageLevel: p.upgrades ? (p.upgrades.storage ? levelOf(STORAGE, p.upgrades.storage) : 0) : -1,
+        vault: typeof p.funds === "number" ? p.funds : null,
+        value: typeof p.value === "number" ? p.value : null,
+        startupFromApi: !!t
+      };
+
+      apiStock = null;
+      var stockErr = null;
+      try {
+        var st = await call("/company/stock", key);
+        apiStock = st.stock || [];
+        report.stock = apiStock.map(function (it) { return { name: it.name, in_stock: it.in_stock, on_order: it.on_order, cost: it.cost, rrp: it.rrp, price: it.price, sold_amount: it.sold_amount, sold_worth: it.sold_worth }; });
+      } catch (e) { stockErr = e.message; report.stockError = e.message; }
+
+      // What Torn sent back
+      $("aFound").textContent = "";
+      addFound("Company", api.name || "–", !!api.name);
+      addFound("Type", api.typeName || "–", !!api.typeName);
+      addFound("Startup cost", api.startup ? fmt(api.startup) : "–", api.startupFromApi);
+      var ss = api.capacity !== null ? sizeStepsFor(api.defaultSize, api.capacity) : null;
+      addFound("Size", api.capacity !== null ? api.capacity + " employees (" + ss.steps + " of 6 upgrades)" : "–", api.capacity !== null);
+      addFound("Staff room", api.staffLevel >= 0 ? $("aStaff").options[api.staffLevel].textContent : "Not available", api.staffLevel >= 0);
+      addFound("Warehouse", api.storageLevel >= 0 ? $("aStorage").options[api.storageLevel].textContent : "Not available", api.storageLevel >= 0);
+      addFound("Vault", api.vault !== null ? fmt(api.vault) : "Not available", api.vault !== null);
+      addFound("Stock", apiStock ? fmt(apiStockValue()) : "Not available", !!apiStock);
+
+      // Stock table
+      var body = $("aStockRows"); body.textContent = "";
+      (apiStock || []).forEach(function (it) {
+        var tr = document.createElement("tr");
+        [it.name, fmtPlain(it.in_stock || 0), fmtPlain(it.on_order || 0), fmt(it.cost || 0), fmt((it.in_stock || 0) * (it.cost || 0)), fmtPlain(it.sold_amount || 0), fmt(it.sold_worth || 0)].forEach(function (v) {
+          var td = document.createElement("td"); td.textContent = v; tr.appendChild(td);
+        });
+        body.appendChild(tr);
+      });
+      $("aStockDetails").hidden = !(apiStock && apiStock.length);
+      $("aOnOrderWrap").hidden = !(apiStock && apiStock.some(function (it) { return it.on_order > 0; }));
+
+      // What you need to add
+      $("aStaffWrap").hidden = api.staffLevel >= 0;
+      $("aStorageWrap").hidden = api.storageLevel >= 0;
+      $("aVaultWrap").hidden = api.vault !== null;
+      $("aStockWrap").hidden = !!apiStock;
+      $("aSell").value = "";
+      if (api.value !== null) { $("aValue").textContent = fmt(api.value); $("aValueBox").hidden = false; } else $("aValueBox").hidden = true;
+      $("aVaultNote").hidden = api.vault === null;
+      if (api.vault !== null) $("aVaultNote").textContent = "The vault (" + fmt(api.vault) + ") came from Torn and is taken off automatically, so enter the sell price exactly as the game shows it.";
+
+      $("aFoundCard").hidden = false;
+      $("aNeedCard").hidden = false;
+      $("aReport").value = JSON.stringify(report, null, 2);
+      $("aReportCard").hidden = false;
+
+      var missing = [];
+      if (api.staffLevel < 0) missing.push("staff room");
+      if (api.storageLevel < 0) missing.push("warehouse");
+      if (api.vault === null) missing.push("vault");
+      if (!apiStock) missing.push("stock");
+      setStatus(missing.length ? "warn" : "ok",
+        "Loaded " + (api.name ? "\"" + api.name + "\"" : "your company") + ". " +
+        (missing.length ? "This key can't see the " + missing.join(", ") + (stockErr ? " (" + stockErr + ")" : "") + ", so add " + (missing.length === 1 ? "it" : "them") + " below with the sell price." : "Now add the sell price below."));
+    } catch (e) {
+      setStatus("bad", "Couldn't load your company: " + e.message);
+    } finally {
+      $("loadBtn").disabled = false;
+      render();
+    }
+  }
+  function apiInputs() {
+    if (!api) return null;
+    var ss = api.capacity !== null ? sizeStepsFor(api.defaultSize, api.capacity) : { steps: 0, exact: false };
+    return {
+      startup: api.startup,
+      sizeSteps: ss.steps, sizeExact: ss.exact,
+      staffLevel: api.staffLevel >= 0 ? api.staffLevel : Number($("aStaff").value),
+      storageLevel: api.storageLevel >= 0 ? api.storageLevel : Number($("aStorage").value),
+      stock: apiStock ? apiStockValue() : parseMoney($("aStock").value),
+      sell: parseMoney($("aSell").value),
+      vault: api.vault !== null ? api.vault : parseMoney($("aVault").value),
+      sellIncludesVault: true
+    };
+  }
+
+  $("loadBtn").addEventListener("click", load);
+  $("apiKey").addEventListener("keydown", function (e) { if (e.key === "Enter") load(); });
+  $("aUseValue").addEventListener("click", function () { $("aSell").value = fmtPlain(api.value); render(); });
+  $("aOnOrder").addEventListener("change", render);
+  $("rememberKey").addEventListener("change", function () { try { if (!this.checked) localStorage.removeItem(STORE_KEY); } catch (e) {} });
+  $("aCopy").addEventListener("click", function () {
+    var text = $("aReport").value;
+    var done = function (m) { $("aCopyMsg").textContent = m; };
+    try { navigator.clipboard.writeText(text).then(function () { done("Copied."); }, function () { $("aReport").select(); done("Press Ctrl+C to copy."); }); }
+    catch (e) { $("aReport").select(); done("Press Ctrl+C to copy."); }
+  });
+
+  // ---------- result ----------
+  function render() {
+    var i = activeTab === "api" ? apiInputs() : manualInputs();
+    var ids = ["rSell", "rCost", "rStartup", "rSize", "rStaff", "rStorage", "rCostTotal", "rStock", "rVault", "rCut", "rLife"];
+    var big = $("lifetime");
+    if (!i) {
+      big.textContent = "Load your company first"; big.className = "big empty";
+      ids.forEach(function (id) { $(id).textContent = "–"; });
+      $("calcWarn").hidden = true; $("soldBox").hidden = true;
+      return;
+    }
+    var r = compute(i);
+    var noSell = i.sell <= 0;
+    big.textContent = noSell ? "Enter the sell price" : fmt(r.lifetime);
+    big.className = "big" + (noSell ? " empty" : r.lifetime < 0 ? " neg" : "");
+    $("rSell").textContent = fmt(i.sell);
+    $("rCost").textContent = fmt(-0.75 * r.costTotal);
+    $("rStartup").textContent = fmt(i.startup);
+    $("rSizeLabel").textContent = "Size upgrades (" + i.sizeSteps + " of 6)";
+    $("rSize").textContent = fmt(r.sizeCost);
+    $("rStaff").textContent = fmt(r.staffCost);
+    $("rStorage").textContent = fmt(r.storageCost);
+    $("rCostTotal").textContent = fmt(r.costTotal);
+    $("rStock").textContent = fmt(-0.75 * i.stock);
+    $("rVault").textContent = fmt(-i.vault);
+    $("rCut").textContent = fmt(r.cut);
+    $("rLife").textContent = fmt(r.lifetime);
+
+    var warns = [];
+    if (r.cut < 0 && !noSell) warns.push("The sell price is lower than the guaranteed returns, so the numbers don't add up. Check the sell price, the vault setting and the upgrades.");
+    if (!i.sizeExact) warns.push("The company's size doesn't match a size upgrade for its type, so the closest one was used.");
+    $("calcWarn").hidden = !warns.length;
+    $("calcWarn").textContent = warns.join(" ");
+
+    var worth = activeTab === "api" && apiStock ? apiStock.reduce(function (s, it) { return s + (it.sold_worth || 0); }, 0) : 0;
+    $("soldBox").hidden = worth <= 0;
+    $("rSoldWorth").textContent = fmt(worth);
+  }
+
+  // Re-render on any edit in either panel.
+  document.addEventListener("input", function (e) { if (e.target.id !== "apiKey" && e.target.id !== "mType") { if (e.target.closest("#panel-manual")) hideExample(); render(); } });
+  document.addEventListener("change", function (e) { if (e.target.id !== "rememberKey" && e.target.id !== "mType") { if (e.target.closest("#panel-manual")) hideExample(); render(); } });
+
+  // ---------- start: example of a fully upgraded Fitness Center ----------
+  fillTypeSelect();
+  $("mType").value = "Fitness Center";
+  onTypeChange(6);
+  $("mStaff").value = "6";
+  $("mStorage").value = "0";
+  $("mSell").value = "54,669,879";
+  $("mVault").value = "0";
+  try { var saved = localStorage.getItem(STORE_KEY); if (saved) { $("apiKey").value = saved; $("rememberKey").checked = true; } } catch (e) {}
+  var startTab = "manual";
+  try { startTab = localStorage.getItem(TAB_KEY) === "api" ? "api" : "manual"; } catch (e) {}
+  showTab(startTab);
+})();
+</script>
+</body>
+</html>
