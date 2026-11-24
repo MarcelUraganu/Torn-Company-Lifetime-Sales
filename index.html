@@ -266,12 +266,6 @@ a.go { font-weight: 500; white-space: nowrap; }
           </div>
         </section>
 
-        <section class="card" aria-labelledby="ah-report" id="aReportCard" hidden>
-          <h2 id="ah-report"><span class="step">TEST</span>Test report</h2>
-          <p class="hint">What the API returned, with your key left out. Paste it into the chat so the calculation can be checked.</p>
-          <div class="row"><button type="button" class="ghost" id="aCopy">Copy test report</button><span class="hint" id="aCopyMsg"></span></div>
-          <textarea id="aReport" readonly aria-label="Test report"></textarea>
-        </section>
       </div>
     </div>
 
@@ -540,17 +534,14 @@ a.go { font-weight: 500; white-space: nowrap; }
     try { if ($("rememberKey").checked) localStorage.setItem(STORE_KEY, key); else localStorage.removeItem(STORE_KEY); } catch (e) {}
     $("loadBtn").disabled = true;
     setStatus("warn", "Loading from api.torn.com…");
-    var report = { generated: new Date().toISOString() };
     try {
       var prof = await call("/company/profile", key);
       var p = prof.profile || prof.company || prof;
-      report.profile = { type: p.type, rating: p.rating, days_old: p.days_old, employees: p.employees, upgrades: p.upgrades, funds: p.funds, value: p.value, income: p.income };
 
       var types = await call("/torn/companies", key);
       var list = types.companies || [];
       var t = null;
       for (var k = 0; k < list.length; k++) if (p.type && list[k].id === p.type.id) { t = list[k]; break; }
-      report.companyType = t ? { id: t.id, name: t.name, cost: t.cost, employees: t.employees } : null;
       var wiki = p.type ? typeInfo(p.type.name) : null;
 
       api = {
@@ -570,8 +561,7 @@ a.go { font-weight: 500; white-space: nowrap; }
       try {
         var st = await call("/company/stock", key);
         apiStock = st.stock || [];
-        report.stock = apiStock.map(function (it) { return { name: it.name, in_stock: it.in_stock, on_order: it.on_order, cost: it.cost, rrp: it.rrp, price: it.price, sold_amount: it.sold_amount, sold_worth: it.sold_worth }; });
-      } catch (e) { stockErr = e.message; report.stockError = e.message; }
+      } catch (e) { stockErr = e.message; }
 
       // What Torn sent back
       $("aFound").textContent = "";
@@ -609,8 +599,6 @@ a.go { font-weight: 500; white-space: nowrap; }
 
       $("aFoundCard").hidden = false;
       $("aNeedCard").hidden = false;
-      $("aReport").value = JSON.stringify(report, null, 2);
-      $("aReportCard").hidden = false;
 
       var missing = [];
       if (api.staffLevel < 0) missing.push("staff room");
@@ -647,12 +635,6 @@ a.go { font-weight: 500; white-space: nowrap; }
   $("aUseValue").addEventListener("click", function () { $("aSell").value = fmtPlain(api.value); render(); });
   $("aOnOrder").addEventListener("change", render);
   $("rememberKey").addEventListener("change", function () { try { if (!this.checked) localStorage.removeItem(STORE_KEY); } catch (e) {} });
-  $("aCopy").addEventListener("click", function () {
-    var text = $("aReport").value;
-    var done = function (m) { $("aCopyMsg").textContent = m; };
-    try { navigator.clipboard.writeText(text).then(function () { done("Copied."); }, function () { $("aReport").select(); done("Press Ctrl+C to copy."); }); }
-    catch (e) { $("aReport").select(); done("Press Ctrl+C to copy."); }
-  });
 
   // ---------- result ----------
   function render() {
